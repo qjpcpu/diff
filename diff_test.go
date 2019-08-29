@@ -2,7 +2,6 @@ package diff
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -13,19 +12,19 @@ func TestBasicArray(t *testing.T) {
 	r2 := []string{"a", "g", "b", "c", "a", "t"}
 	df := New()
 	var cnt int
-	fn := func(p string, r Reason, lv, rv reflect.Value) bool {
-		switch r {
+	fn := func(d *D) bool {
+		switch d.Reason {
 		case DiffOfRightElemAdded:
-			if rv.String() != "t" {
+			if d.RightV.String() != "t" {
 				t.Fatal("bad cmp")
 			}
 		case DiffOfValue:
-			if rv.String() != "a" && rv.String() != "g" {
+			if d.RightV.String() != "a" && d.RightV.String() != "g" {
 				t.Fatal("bad cmp")
 			}
 		}
 		cnt++
-		t.Log(p, r, lv.String(), rv.String())
+		t.Log(d.Path, d.Reason, d.LeftV.String(), d.RightV.String())
 		return true
 	}
 	if df.Compare(r1, r2, fn) {
@@ -39,15 +38,15 @@ func TestBasicArray(t *testing.T) {
 func TestKind(t *testing.T) {
 	df := New()
 	var reason Reason
-	df.Compare(1, 12, func(p string, r Reason, lv, rv reflect.Value) bool {
-		reason = r
+	df.Compare(1, 12, func(d *D) bool {
+		reason = d.Reason
 		return true
 	})
 	if reason != DiffOfValue {
 		t.Fatal("should diff value")
 	}
-	df.Compare(1, int64(1), func(p string, r Reason, lv, rv reflect.Value) bool {
-		reason = r
+	df.Compare(1, int64(1), func(d *D) bool {
+		reason = d.Reason
 		return true
 	})
 	if reason != DiffOfType {
@@ -66,8 +65,8 @@ func TestKind(t *testing.T) {
 		t.Fatal("should equal")
 	}
 	var s *string
-	if df.Compare(stringPtr("s"), s, func(p string, r Reason, lv, rv reflect.Value) bool {
-		if r != DiffOfRightNoValue {
+	if df.Compare(stringPtr("s"), s, func(d *D) bool {
+		if d.Reason != DiffOfRightNoValue {
 			t.Fatal("bad reason")
 		}
 		return true
@@ -75,9 +74,9 @@ func TestKind(t *testing.T) {
 		t.Fatal("should not equal")
 	}
 	var i *int
-	if df.Compare(i, intPtr(1), func(p string, r Reason, lv, rv reflect.Value) bool {
-		if r != DiffOfLeftNoValue {
-			t.Fatal("bad reason", r)
+	if df.Compare(i, intPtr(1), func(d *D) bool {
+		if d.Reason != DiffOfLeftNoValue {
+			t.Fatal("bad reason", d.Reason)
 		}
 		return true
 	}) {
@@ -137,7 +136,7 @@ func TestDiffStruct1(t *testing.T) {
 	if err != nil {
 		t.Fatal("should regist Ok", err)
 	}
-	if !df.Compare(s1, s2, func(p string, re Reason, l, r reflect.Value) bool {
+	if !df.Compare(s1, s2, func(*D) bool {
 		return true
 	}) {
 		t.Fatal("should equal")
@@ -147,20 +146,20 @@ func TestDiffStruct1(t *testing.T) {
 func TestDiffSlice(t *testing.T) {
 	arr, brr := []string{"a", "c", "a", "b"}, []string{"d", "e", "a", "a", "b"}
 	df := New()
-	if df.Compare(arr, brr, func(p string, re Reason, l, r reflect.Value) bool {
-		if re == DiffOfRightElemAdded {
-			if str := r.String(); str != "d" && str != "e" {
+	if df.Compare(arr, brr, func(d *D) bool {
+		if d.Reason == DiffOfRightElemAdded {
+			if str := d.RightV.String(); str != "d" && str != "e" {
 				t.Fatal("should add d/e")
 			}
-			if r.String() == "d" && p != ".[0]" {
+			if d.RightV.String() == "d" && d.Path != ".[0]" {
 				t.Fatal("bad new path")
 			}
-			if r.String() == "e" && p != ".[1]" {
+			if d.RightV.String() == "e" && d.Path != ".[1]" {
 				t.Fatal("bad new path")
 			}
-		} else if re == DiffOfLeftElemRemoved {
-			if l.String() != "c" || p != ".[1]" {
-				t.Fatal("bad new path", p)
+		} else if d.Reason == DiffOfLeftElemRemoved {
+			if d.LeftV.String() != "c" || d.Path != ".[1]" {
+				t.Fatal("bad new path", d.Path)
 			}
 		}
 		return true
@@ -191,26 +190,26 @@ func TestDiffComplexSlice(t *testing.T) {
 		{ID: "2", Name: "hello2-0"},
 		{ID: "4", Name: "hello4"},
 	}
-	if df.Compare(arr, brr, func(p string, re Reason, l, r reflect.Value) bool {
-		switch re {
+	if df.Compare(arr, brr, func(d *D) bool {
+		switch d.Reason {
 		case DiffOfValue:
-			if p == ".[0].Name" {
-				lobj, robj := l.String(), r.String()
+			if d.Path == ".[0].Name" {
+				lobj, robj := d.LeftV.String(), d.RightV.String()
 				if lobj != "hello1" && robj != "hello100" {
 					t.Fatal("bad cmp")
 				}
-			} else if p == ".[0].Age" {
-				if r.Int() != 12 {
+			} else if d.Path == ".[0].Age" {
+				if d.RightV.Int() != 12 {
 					t.Fatal("bad cmp")
 				}
 			}
 		case DiffOfLeftElemRemoved:
-			obj := l.Interface().(Obj)
+			obj := d.LeftV.Interface().(Obj)
 			if obj.Name != "hello2-1" && obj.Name != "hello3" {
 				t.Fatal("bad cmp")
 			}
 		case DiffOfRightElemAdded:
-			obj := r.Interface().(Obj)
+			obj := d.RightV.Interface().(Obj)
 			if obj.Name != "hello4" {
 				t.Fatal("bad cmp")
 			}
@@ -272,9 +271,9 @@ func TestUseIDFunc(t *testing.T) {
 	if df.Compare(s1, s2, nil) {
 		t.Fatal("should not equal")
 	}
-	if df.Compare(s1, s2, func(p string, r Reason, lv, rv reflect.Value) bool {
-		if r != DiffOfValue {
-			t.Fatal("bad reason", r, lv.Interface(), rv.Interface())
+	if df.Compare(s1, s2, func(d *D) bool {
+		if d.Reason != DiffOfValue {
+			t.Fatal("bad reason", d.Reason, d.LeftV.Interface(), d.RightV.Interface())
 		}
 		return true
 	}) {
@@ -283,17 +282,17 @@ func TestUseIDFunc(t *testing.T) {
 	df.RegistIDFunc(func(x *Inner) string {
 		return fmt.Sprint(x.Num / 10)
 	})
-	if df.Compare(s1, s2, func(p string, r Reason, lv, rv reflect.Value) bool {
-		if r != DiffOfValue {
+	if df.Compare(s1, s2, func(d *D) bool {
+		if d.Reason != DiffOfValue {
 			t.Fatal("bad reason")
 		}
-		if p != ".Inner[0].Num" {
-			t.Fatal("bad path", p)
+		if d.Path != ".Inner[0].Num" {
+			t.Fatal("bad path", d.Path)
 		}
-		if int(lv.Int()) != 100 {
+		if int(d.LeftV.Int()) != 100 {
 			t.Fatal("bad v")
 		}
-		if int(rv.Int()) != 101 {
+		if int(d.RightV.Int()) != 101 {
 			t.Fatal("bad v")
 		}
 		return true
@@ -357,14 +356,14 @@ func TestComplexStruct(t *testing.T) {
 		return *c.Link
 	})
 	h2.CompanyList[1].Name = "AWS"
-	fn := func(path string, r Reason, lv, rv reflect.Value) bool {
-		if !strings.Contains(path, ".CompanyList") {
+	fn := func(d *D) bool {
+		if !strings.Contains(d.Path, ".CompanyList") {
 			t.Fatal("companay should not equal")
 		}
-		if r != DiffOfValue {
+		if d.Reason != DiffOfValue {
 			t.Fatal("now companay should not equal by name")
 		}
-		if lv.String() != "aws" || rv.String() != "AWS" || path != ".CompanyList[1].Name" {
+		if d.LeftV.String() != "aws" || d.RightV.String() != "AWS" || d.Path != ".CompanyList[1].Name" {
 			t.Fatal("should diff name")
 		}
 		return true
@@ -378,8 +377,8 @@ func TestComplexStruct(t *testing.T) {
 	}
 
 	h2.Tags = []string{"b", "b", "c"}
-	fn = func(path string, r Reason, lv, rv reflect.Value) bool {
-		if !strings.Contains(path, ".Tags") {
+	fn = func(d *D) bool {
+		if !strings.Contains(d.Path, ".Tags") {
 			t.Fatal("tags should not equal")
 		}
 		return true

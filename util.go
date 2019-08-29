@@ -88,3 +88,12 @@ func valueToString(fromv reflect.Value) string {
 	}
 	return fmt.Sprint(fromv.Interface())
 }
+
+func buildD(path string, reason Reason, leftV reflect.Value, rightV reflect.Value) *D {
+	return &D{
+		Path:   path,
+		Reason: reason,
+		LeftV:  leftV,
+		RightV: rightV,
+	}
+}

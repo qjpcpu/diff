@@ -43,7 +43,9 @@ func (re Reason) String() string {
 }
 
 // Callback invoked when left is different with right
-type Callback func(path string, reason Reason, leftV reflect.Value, rightV reflect.Value) (shouldContinue bool)
+type Callback func(*D) (shouldContinue bool)
+
+type callbackD func(path string, reason Reason, leftV reflect.Value, rightV reflect.Value) (shouldContinue bool)
 
 // Differ with compare functions
 type Differ struct {
@@ -66,7 +68,7 @@ type pathType struct {
 type differ struct {
 	*Differ
 	// Callback when diff value found
-	Callback        Callback
+	Callback        callbackD
 	differenceExist bool
 	typeCache       *typeIDCache
 }
@@ -92,7 +94,8 @@ func newDiffer(d *Differ, fn Callback) *differ {
 			return true
 		}
 		_diff.differenceExist = true
-		return fn(path, reason, leftV, rightV)
+		_d := buildD(path, reason, leftV, rightV)
+		return fn(_d)
 	}
 	_diff.Callback = wfn
 	return _diff
