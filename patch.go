@@ -1,6 +1,11 @@
 package diff
 
-import "reflect"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"reflect"
+)
 
 // D is a single path row
 type D struct {
@@ -28,4 +33,17 @@ func (p *Patch) IsEmpty() bool {
 func (p *Patch) add(d *D) *Patch {
 	p.List = append(p.List, d)
 	return p
+}
+
+// Readable string format
+func (p *Patch) Readable() string {
+	var b bytes.Buffer
+	b.WriteString(fmt.Sprintf("Patch size: %v\n", p.Size()))
+	for i, d := range p.List {
+		datal, _ := json.Marshal(d.LeftV.Interface())
+		datar, _ := json.Marshal(d.RightV.Interface())
+		b.WriteString(fmt.Sprintf("%2d. %s (%s) left=(%v) right=(%v)\n", i+1, d.Path, d.Reason, string(datal), string(datar)))
+	}
+	b.WriteRune('\n')
+	return b.String()
 }
