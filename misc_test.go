@@ -107,22 +107,3 @@ func TestReplacePathStar(t *testing.T) {
 		t.Fatal("bad replace:", p)
 	}
 }
-
-func TestEncode(t *testing.T) {
-	arr, brr := []int{1, 2, 3}, []int{2, 4, 5, 1}
-	df := New()
-	p1 := df.MakePatch(arr, brr)
-	var data []byte
-	var err error
-	if data, err = p1.Encode(); err != nil {
-		t.Fatal("should encode ok")
-	}
-	p2 := &Patch{}
-	if err = p2.Decode(data); err != nil {
-		t.Fatal("should decode ok")
-	}
-	if p1.Readable() != p2.Readable() {
-		t.Fatal("should encode/decode ok")
-	}
-	t.Log(p1.Readable())
-}
