@@ -42,7 +42,7 @@ func (p *Patch) Readable() string {
 	for i, d := range p.List {
 		datal, _ := json.Marshal(d.LeftV.Interface())
 		datar, _ := json.Marshal(d.RightV.Interface())
-		b.WriteString(fmt.Sprintf("%2d. %s (%s) left=(%v) right=(%v)\n", i+1, d.Path, d.Reason, string(datal), string(datar)))
+		b.WriteString(fmt.Sprintf("%02d. %s (%s) left=(%v) right=(%v)\n", i+1, d.Path, d.Reason, string(datal), string(datar)))
 	}
 	b.WriteRune('\n')
 	return b.String()

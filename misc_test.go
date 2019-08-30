@@ -23,4 +23,79 @@ func TestRegist(t *testing.T) {
 	if err := df.RegistCompareFunc(f4); err != nil {
 		t.Fatal("should not fail")
 	}
+	if err := df.RegistPathCompareFunc("path", func(a, b int) bool { return false }); err != nil {
+		t.Fatal("should not fail")
+	}
+	if err := df.RegistIDFunc(func(a interface{}) string { return "" }); err != nil {
+		t.Fatal("should not fail")
+	}
+	if err := df.RegistKindIDFunc(func(int) string { return "" }); err != nil {
+		t.Fatal("should not fail")
+	}
+}
+
+func TestAlignSlice(t *testing.T) {
+	ls := sliceElems{
+		{idx: 0, identity: "1"},
+		{idx: 1, identity: "2"},
+		{idx: 2, identity: "3"},
+		{idx: 3, identity: "4"},
+	}
+	lr := sliceElems{
+		{idx: 0, identity: "10"},
+		{idx: 3, identity: "40"},
+		{idx: 1, identity: "90"},
+	}
+	l, r, a, d := alignSlice(ls, lr)
+	if len(a) != 0 {
+		t.Fatal("bad align")
+	}
+	if len(d) != 1 {
+		t.Fatal("bad align")
+	}
+	if len(l) != 3 || len(r) != 3 {
+		t.Fatal("bad align")
+	}
+	ls = sliceElems{
+		{idx: 0, identity: "a"},
+		{idx: 1, identity: "b"},
+		{idx: 2, identity: "c"},
+		{idx: 3, identity: "d"},
+	}
+	lr = sliceElems{
+		{idx: 2, identity: "a"},
+		{idx: 0, identity: "c"},
+		{idx: 1, identity: "d"},
+	}
+	l, r, a, d = alignSlice(ls, lr)
+	if len(a) != 0 {
+		t.Fatal("bad align")
+	}
+	if len(d) != 1 || d[0].identity != "b" {
+		t.Fatal("bad align")
+	}
+	if len(l) != 3 || len(r) != 3 {
+		t.Fatal("bad align")
+	}
+	ls = sliceElems{
+		{idx: 2, identity: "a"},
+		{idx: 0, identity: "c"},
+		{idx: 1, identity: "d"},
+	}
+	lr = sliceElems{
+		{idx: 0, identity: "a"},
+		{idx: 1, identity: "b"},
+		{idx: 2, identity: "c"},
+		{idx: 3, identity: "d"},
+	}
+	l, r, a, d = alignSlice(ls, lr)
+	if len(d) != 0 {
+		t.Fatal("bad align")
+	}
+	if len(a) != 1 || a[0].identity != "b" {
+		t.Fatal("bad align")
+	}
+	if len(l) != 3 || len(r) != 3 {
+		t.Fatal("bad align")
+	}
 }

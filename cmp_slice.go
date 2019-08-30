@@ -101,8 +101,8 @@ func alignSlice(ls, rs sliceElems) (left sliceElems, right sliceElems, added sli
 		if len(deleted) > len(added) {
 			left = append(left, deleted[:len(added)]...)
 			right = append(right, added...)
-			added = nil
 			deleted = deleted[len(added):]
+			added = nil
 		} else {
 			left = append(left, deleted...)
 			right = append(right, added[:len(deleted)]...)
@@ -110,6 +110,7 @@ func alignSlice(ls, rs sliceElems) (left sliceElems, right sliceElems, added sli
 			deleted = nil
 		}
 	}
+
 	return
 }
 
