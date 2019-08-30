@@ -20,6 +20,18 @@ type Patch struct {
 	List []*D
 }
 
+// DInterface is interface of D
+type DInterface struct {
+	Path          string
+	Reason        Reason
+	LeftV, RightV interface{}
+}
+
+// PatchValue is result of diff
+type PatchValue struct {
+	List []DInterface
+}
+
 // Size of patch
 func (p *Patch) Size() int {
 	return len(p.List)
@@ -46,4 +58,18 @@ func (p *Patch) Readable() string {
 	}
 	b.WriteRune('\n')
 	return b.String()
+}
+
+// Interface of patch details
+func (p *Patch) Interface() PatchValue {
+	var list []DInterface
+	for _, v := range p.List {
+		list = append(list, DInterface{
+			Path:   v.Path,
+			Reason: v.Reason,
+			LeftV:  v.LeftV.Interface(),
+			RightV: v.RightV.Interface(),
+		})
+	}
+	return PatchValue{List: list}
 }
