@@ -113,7 +113,17 @@ func isStructWithIDField(v reflect.Type) (fn reflect.Value, ok bool) {
 			return
 		}
 		fn = reflect.ValueOf(func(any interface{}) string {
-			return valueToString(reflect.ValueOf(any).Field(idx).Elem())
+			if any == nil {
+				return _ZERO
+			}
+			vv := reflect.ValueOf(any)
+			if !vv.IsValid() {
+				return _ZERO
+			}
+			if vv.Field(idx).IsNil() || !vv.Field(idx).IsValid() {
+				return _ZERO
+			}
+			return valueToString(vv.Field(idx).Elem())
 		})
 		ok = true
 		return
@@ -122,7 +132,17 @@ func isStructWithIDField(v reflect.Type) (fn reflect.Value, ok bool) {
 		return
 	}
 	fn = reflect.ValueOf(func(any interface{}) string {
-		return valueToString(reflect.ValueOf(any).Field(idx))
+		if any == nil {
+			return _ZERO
+		}
+		vv := reflect.ValueOf(any)
+		if !vv.IsValid() {
+			return _ZERO
+		}
+		if !vv.Field(idx).IsValid() {
+			return _ZERO
+		}
+		return valueToString(vv.Field(idx))
 	})
 	ok = true
 	return

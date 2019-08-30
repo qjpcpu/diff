@@ -99,3 +99,11 @@ func TestAlignSlice(t *testing.T) {
 		t.Fatal("bad align")
 	}
 }
+
+func TestReplacePathStar(t *testing.T) {
+	p := "A.B[1].C.D[12].E[1]"
+	p = replaceSliceIndexToStar(p)
+	if p != "A.B[*].C.D[*].E[*]" {
+		t.Fatal("bad replace:", p)
+	}
+}

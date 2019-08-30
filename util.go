@@ -43,6 +43,41 @@ func isIndexToken(s string) bool {
 	return true
 }
 
+func replaceSliceIndexToStar(p string) string {
+	token := []byte(p)
+	var bracket bool
+	var moreThanOne bool
+	for i := 0; i < len(token); i++ {
+		if token[i] == '[' {
+			bracket = true
+			moreThanOne = true
+			continue
+		}
+		if bracket && token[i] >= '0' && token[i] <= '9' {
+			token[i] = '*'
+		}
+		if token[i] == ']' {
+			bracket = false
+		}
+	}
+	if !moreThanOne {
+		return p
+	}
+	var offset int
+	for i, b := range token {
+		if b == '*' {
+			if i == 0 || token[i-1] != '*' {
+				token[i-offset] = b
+			} else {
+				offset++
+			}
+		} else {
+			token[i-offset] = b
+		}
+	}
+	return string(token[:len(token)-offset])
+}
+
 func buildIndexStep(i int) string {
 	return "[" + strconv.FormatInt(int64(i), 10) + "]"
 }

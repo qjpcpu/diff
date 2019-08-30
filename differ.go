@@ -90,7 +90,7 @@ func New() *Differ {
 func newDiffer(d *Differ, fn Callback) *differ {
 	_diff := &differ{Differ: d, typeCache: newTypeIDCache()}
 	wfn := func(path string, reason Reason, leftV reflect.Value, rightV reflect.Value) (shouldContinue bool) {
-		if d.omitPaths[path] {
+		if d.isOmit(path) {
 			return true
 		}
 		_diff.differenceExist = true
@@ -106,6 +106,14 @@ func (df *Differ) OmitPath(list ...string) {
 	for _, p := range list {
 		df.omitPaths[p] = true
 	}
+}
+
+func (df *Differ) isOmit(p string) bool {
+	if df.omitPaths[p] {
+		return true
+	}
+	p = replaceSliceIndexToStar(p)
+	return df.omitPaths[p]
 }
 
 // RegistCompareFunc the cmpFunc should be func(left,right customType) bool
