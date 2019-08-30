@@ -2,6 +2,7 @@ package diff
 
 import (
 	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -46,4 +47,65 @@ func (p *Patch) Readable() string {
 	}
 	b.WriteRune('\n')
 	return b.String()
+}
+
+type transD struct {
+	Path          string
+	Reason        Reason
+	LeftV, RightV interface{}
+}
+
+type transPatch struct {
+	List []transD
+}
+
+func (d D) toTrans() transD {
+	return transD{
+		Path:   d.Path,
+		Reason: d.Reason,
+		LeftV:  d.LeftV.Interface(),
+		RightV: d.RightV.Interface(),
+	}
+}
+
+func (d transD) toD() *D {
+	return &D{
+		Path:   d.Path,
+		Reason: d.Reason,
+		LeftV:  reflect.ValueOf(d.LeftV),
+		RightV: reflect.ValueOf(d.RightV),
+	}
+}
+func (p *Patch) toTrans() (tp transPatch) {
+	for _, d := range p.List {
+		tp.List = append(tp.List, d.toTrans())
+	}
+	return
+}
+func (p transPatch) toPatch() *Patch {
+	pa := &Patch{}
+	for _, d := range p.List {
+		pa.List = append(pa.List, d.toD())
+	}
+	return pa
+}
+
+// Encode patch to bytes
+func (p *Patch) Encode() ([]byte, error) {
+	var b bytes.Buffer
+	enc := gob.NewEncoder(&b)
+	err := enc.Encode(p.toTrans())
+	return b.Bytes(), err
+}
+
+// Decode patch from bytes
+func (p *Patch) Decode(data []byte) error {
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	var tp transPatch
+	if err := dec.Decode(&tp); err != nil {
+		return err
+	}
+	pch := tp.toPatch()
+	*p = *pch
+	return nil
 }
