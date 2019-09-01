@@ -9,6 +9,7 @@ func cmpMap(df *differ, steps []string, k, v reflect.Type, lv, rv reflect.Value)
 	keys := lv.MapKeys()
 	for _, key := range keys {
 		lvv, rvv := lv.MapIndex(key), rv.MapIndex(key)
+		df.setPathToType(buildPath(appendPath(steps, key.String())), lvv.Type())
 		if lvv.Type().Kind() == reflect.Ptr {
 			if lvv.IsNil() != rvv.IsNil() {
 				s := appendPath(steps, key.String())

@@ -11,6 +11,9 @@ func cmpStruct(df *differ, steps []string, t reflect.Type, lv, rv reflect.Value)
 		if !isExported(ft.Name) {
 			continue
 		}
+
+		df.setPathToType(buildPath(appendPath(steps, ft.Name)), ft.Type)
+
 		if df.canCmpType(buildPath(appendPath(steps, ft.Name)), ft.Type) {
 			if !df.cmpByType(appendPath(steps, ft.Name), ft.Type, lfv, rfv) {
 				return false

@@ -23,6 +23,9 @@ func (a sliceElems) Less(i, j int) bool {
 type getIDFunc func(reflect.Value) string
 
 func buildGetIDFn(df *differ, et reflect.Type) getIDFunc {
+	if et == nil {
+		return func(reflect.Value) string { return _ZERO }
+	}
 	if fn, ok := df.typeIDFuncs[et]; ok {
 		return func(_v reflect.Value) string {
 			if !_v.IsValid() {
@@ -115,6 +118,8 @@ func alignSlice(ls, rs sliceElems) (left sliceElems, right sliceElems, added sli
 }
 
 func cmpSlice(df *differ, steps []string, et reflect.Type, lv, rv reflect.Value) bool {
+	df.setPathToType(buildPath(appendPath(steps, buildIndexStep(0))), et)
+
 	getIDFn := buildGetIDFn(df, et)
 	var addedID, deletedID sliceElems
 	leftID := buildSliceElems(df, et, lv, getIDFn)

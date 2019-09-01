@@ -132,3 +132,40 @@ func buildD(path string, reason Reason, leftV reflect.Value, rightV reflect.Valu
 		RightV: rightV,
 	}
 }
+
+// SplitFieldAndIndex a step like array[1] to (array,1)
+func SplitFieldAndIndex(step string) (field string, idx int) {
+	field, idx = step, -1
+	data := []byte(step)
+	size := len(data)
+	if size < 4 || data[size-1] != ']' || data[size-2] < '0' || data[size-2] > '9' {
+		return
+	}
+	// split fail if i==0
+	for i := size - 3; i > 0; i-- {
+		if data[i] >= '0' && data[i] <= '9' {
+			// continue
+		} else if data[i] == '[' {
+			// filt field[00]
+			if data[i+1] == '0' && data[i+2] == '0' {
+				break
+			}
+			i64, err := strconv.ParseInt(string(data[i+1:size-1]), 10, 64)
+			if err != nil {
+				break
+			}
+			field = string(data[:i])
+			idx = int(i64)
+			break
+		} else {
+			break
+		}
+	}
+	return
+}
+
+// TrimFieldIndexSuffix trim step[0] to step
+func TrimFieldIndexSuffix(step string) string {
+	f, _ := SplitFieldAndIndex(step)
+	return f
+}

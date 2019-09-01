@@ -79,19 +79,26 @@ func IDOfFloat64(f float64) string {
 
 // IDOfAnything a is any non-pointer value
 func (df *differ) IDOfAnything(a interface{}) string {
+	vtype := reflect.TypeOf(a)
+	if vtype == nil {
+		return _ZERO
+	}
 	v := reflect.ValueOf(a)
-	if fn, ok := df.typeCache.Get(v.Type()); ok {
+	if fn, ok := df.typeCache.Get(vtype); ok {
 		out := fn.Call([]reflect.Value{v})
 		return out[0].String()
 	}
-	if v.Type().Kind() == reflect.Struct {
-		if fn, ok := isStructWithIDField(v.Type()); ok {
-			df.typeCache.Set(v.Type(), fn)
+	if vtype.Kind() == reflect.Struct {
+		if fn, ok := isStructWithIDField(vtype); ok {
+			df.typeCache.Set(vtype, fn)
 			out := fn.Call([]reflect.Value{v})
 			return out[0].String()
 		}
 	}
-	return fmt.Sprintf("%v", a)
+	if IsPrimitiveType(vtype) || (vtype.Kind() == reflect.Ptr && IsPrimitiveType(vtype.Elem())) {
+		return fmt.Sprintf("%v", a)
+	}
+	return _ZERO
 }
 
 func isStructWithIDField(v reflect.Type) (fn reflect.Value, ok bool) {

@@ -15,6 +15,16 @@ type D struct {
 	RightV reflect.Value
 }
 
+// Indirect of D
+func (d D) Indirect() *D {
+	return &D{
+		Path:   d.Path,
+		Reason: d.Reason,
+		LeftV:  reflect.Indirect(d.LeftV),
+		RightV: reflect.Indirect(d.RightV),
+	}
+}
+
 // Patch is result of diff
 type Patch struct {
 	List []*D

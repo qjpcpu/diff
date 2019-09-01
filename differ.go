@@ -9,14 +9,23 @@ import (
 type Reason int
 
 const (
+	// DiffOfUnknown unknown diff reason
 	DiffOfUnknown Reason = iota
+	// DiffOfType different of type
 	DiffOfType
+	// DiffOfSliceLength different of slice length
 	DiffOfSliceLength
+	// DiffOfMapLength different of map length
 	DiffOfMapLength
+	// DiffOfValue different of value
 	DiffOfValue
+	// DiffOfLeftNoValue different cause left has no value
 	DiffOfLeftNoValue
+	// DiffOfRightNoValue different cause right has no value
 	DiffOfRightNoValue
+	// DiffOfLeftElemRemoved different cause one element of left is removed
 	DiffOfLeftElemRemoved
+	// DiffOfRightElemAdded different cause one element of right is added
 	DiffOfRightElemAdded
 )
 
@@ -71,6 +80,7 @@ type differ struct {
 	Callback        callbackD
 	differenceExist bool
 	typeCache       *typeIDCache
+	pathToType      map[string]reflect.Type
 }
 
 // New differ with default config
@@ -88,13 +98,28 @@ func New() *Differ {
 }
 
 func newDiffer(d *Differ, fn Callback) *differ {
-	_diff := &differ{Differ: d, typeCache: newTypeIDCache()}
+	_diff := &differ{
+		Differ:     d,
+		typeCache:  newTypeIDCache(),
+		pathToType: make(map[string]reflect.Type),
+	}
 	wfn := func(path string, reason Reason, leftV reflect.Value, rightV reflect.Value) (shouldContinue bool) {
 		if d.isOmit(path) {
 			return true
 		}
 		_diff.differenceExist = true
 		_d := buildD(path, reason, leftV, rightV)
+		if t, ok := _diff.getPathToType(path); ok && t.Kind() == reflect.Ptr && leftV.Kind() != reflect.Ptr && leftV.Kind() != reflect.Interface {
+			nLeft, nRight := reflect.New(t.Elem()), reflect.New(t.Elem())
+			if leftV.IsValid() {
+				nLeft.Elem().Set(leftV)
+			}
+			if rightV.IsValid() {
+				nRight.Elem().Set(rightV)
+			}
+			_d.LeftV = nLeft
+			_d.RightV = nRight
+		}
 		return fn(_d)
 	}
 	_diff.Callback = wfn
@@ -265,6 +290,25 @@ func (df *Differ) getCmpTypeFn(path string, t reflect.Type) reflect.Value {
 	return df.cmpFuncs[t]
 }
 
+func (df *differ) setPathToType(path string, tp reflect.Type) {
+	path = replaceSliceIndexToStar(path)
+	if _, ok := df.pathToType[path]; ok {
+		return
+	}
+	df.pathToType[path] = tp
+}
+
+func (df *differ) forceSetPathToType(path string, tp reflect.Type) {
+	path = replaceSliceIndexToStar(path)
+	df.pathToType[path] = tp
+}
+
+func (df *differ) getPathToType(path string) (reflect.Type, bool) {
+	path = replaceSliceIndexToStar(path)
+	t, ok := df.pathToType[path]
+	return t, ok
+}
+
 func (df *differ) cmpByType(steps []string, t reflect.Type, lv, rv reflect.Value) bool {
 	fn := df.getCmpTypeFn(buildPath(steps), t)
 	if !lv.IsValid() || !rv.IsValid() {
@@ -302,6 +346,8 @@ func (df *differ) cmpByKind(steps []string, kind reflect.Kind, lk, rk reflect.Va
 }
 
 func cmpVal(df *differ, steps []string, t reflect.Type, lv, rv reflect.Value) bool {
+	df.setPathToType(buildPath(steps), t)
+
 	if df.canCmpType(buildPath(steps), t) {
 		return df.cmpByType(steps, t, lv, rv)
 	}
@@ -348,6 +394,7 @@ func cmpVal(df *differ, steps []string, t reflect.Type, lv, rv reflect.Value) bo
 			if lv.IsNil() {
 				return true
 			}
+			df.forceSetPathToType(buildPath(steps), lv.Elem().Type())
 			if lv.Elem().Kind() == reflect.Ptr {
 				return cmpVal(df, steps, lv.Elem().Elem().Type(), lv.Elem().Elem(), rv.Elem().Elem())
 			} else {
@@ -355,8 +402,10 @@ func cmpVal(df *differ, steps []string, t reflect.Type, lv, rv reflect.Value) bo
 			}
 		} else {
 			if lv.IsNil() && !rv.IsNil() {
+				df.forceSetPathToType(buildPath(steps), lv.Elem().Type())
 				return df.Callback(buildPath(steps), DiffOfLeftNoValue, lv, rv)
 			} else if !lv.IsNil() && rv.IsNil() {
+				df.forceSetPathToType(buildPath(steps), lv.Elem().Type())
 				return df.Callback(buildPath(steps), DiffOfRightNoValue, lv, rv)
 			}
 		}

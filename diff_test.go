@@ -2,6 +2,7 @@ package diff
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,49 @@ func TestBasicArray(t *testing.T) {
 	if cnt != 3 {
 		t.Fatal("bad cmp", cnt)
 	}
+}
+
+func TestDiffValue(t *testing.T) {
+	r1 := []*string{stringPtr("a")}
+	r2 := []*string{stringPtr("b")}
+	df := New()
+	df.Compare(r1, r2, func(d *D) bool {
+		v, ok := d.LeftV.Interface().(*string)
+		if !ok {
+			t.Fatal("bad diff")
+		}
+		if *v != "a" || *(d.RightV.Interface().(*string)) != "b" {
+			t.Fatal("bad diff")
+		}
+		return true
+	})
+	type Inner struct {
+		Num int
+	}
+	type Simple struct {
+		String    string
+		StringPtr *string
+		Int       int
+		Inner     *Inner
+	}
+
+	df = New()
+	df.RegistCompareFunc(func(i1, i2 *Inner) bool {
+		if i1.Num > i2.Num {
+			return i1.Num-i2.Num < 5
+		}
+		return i2.Num-i1.Num < 5
+	})
+	s1 := &Simple{Inner: &Inner{Num: 100}}
+	s2 := &Simple{Inner: &Inner{Num: 1}}
+
+	df.Compare(s1, s2, func(d *D) bool {
+		if d.RightV.Interface().(*Inner).Num != 1 {
+			t.Fatal("bad diff")
+		}
+		return true
+	})
+
 }
 
 func TestKind(t *testing.T) {
@@ -399,6 +443,78 @@ func TestComplexStruct(t *testing.T) {
 		t.Fatal("should equals")
 	}
 
+}
+
+func TestIDOfAnything(t *testing.T) {
+	df := newDiffer(New(), nil)
+	check := func(a interface{}, res string) {
+		if str := df.IDOfAnything(a); str != res {
+			t.Fatalf("ID of (%v) should be %s, but get %s", a, res, str)
+		}
+	}
+	check(nil, _ZERO)
+	check(1, "1")
+	check("abc", "abc")
+	type X1 struct {
+		ID *string
+	}
+	check(X1{}, _ZERO)
+	check(X1{ID: stringPtr("nnn")}, "nnn")
+	type IDType int
+	type X2 struct {
+		Id *IDType
+	}
+	idt := IDType(100)
+	check(X2{Id: &idt}, "100")
+
+	type X11 struct {
+		Id int
+	}
+	check(X11{}, "0")
+}
+
+func TestBuildGetIDFn(t *testing.T) {
+	df := newDiffer(New(), nil)
+	check := func(a interface{}, res string) {
+		t.Logf("check (%v)'s ID = %s", a, res)
+		fn := buildGetIDFn(df, reflect.TypeOf(a))
+		if str := fn(reflect.ValueOf(a)); str != res {
+			t.Fatalf("ID of (%v) should be %s, but get %s", a, res, str)
+		}
+	}
+	check(nil, _ZERO)
+	check(1, "1")
+	check("abc", "abc")
+	type X1 struct {
+		ID *string
+	}
+	check(X1{}, _ZERO)
+	check(X1{ID: stringPtr("nnn")}, "nnn")
+	type IDType int
+	type X2 struct {
+		Id *IDType
+	}
+	idt := IDType(100)
+	check(X2{Id: &idt}, "100")
+
+	check(X2{}, _ZERO)
+	type X11 struct {
+		Id int
+	}
+	check(X11{}, "0")
+}
+
+func TestInterface(t *testing.T) {
+	var i1, i2 interface{}
+	i1 = []string{"a", "b", "c"}
+	i2 = []string{"c", "b", "a"}
+	if !CompareValue(i1, i2) {
+		t.Fatal("should equals")
+	}
+	i1, i2 = makeHugeStruct(), makeHugeStruct()
+	if !CompareValue(i1, i2) {
+		t.Fatal("should equals")
+	}
 }
 
 func makeHugeStruct() *HugeStruct {
