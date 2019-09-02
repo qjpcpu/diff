@@ -101,41 +101,74 @@ func (df *differ) IDOfAnything(a interface{}) string {
 	return _ZERO
 }
 
-func isStructWithIDField(v reflect.Type) (fn reflect.Value, ok bool) {
-	if v.Kind() != reflect.Struct {
-		return
+type valueModifier func(reflect.Value) reflect.Value
+
+var invalidValue = reflect.ValueOf("invalid")
+
+func isSimpleIDFiled(field reflect.StructField) bool {
+	if field.Name != "ID" && field.Name != "Id" {
+		return false
 	}
-	var idx int = -1
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).Name == "ID" || v.Field(i).Name == "Id" {
-			idx = i
-			break
+	if IsPrimitiveType(field.Type) {
+		return true
+	}
+	return field.Type.Kind() == reflect.Ptr && IsPrimitiveType(field.Type.Elem())
+}
+
+func maybeAnoymousSmpleIDFiled(field reflect.StructField) bool {
+	if !field.Anonymous {
+		return false
+	}
+	return field.Type.Kind() == reflect.Struct || (field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct)
+}
+
+func findIDField(m []valueModifier, t reflect.Type) ([]valueModifier, bool) {
+	if t.Kind() != reflect.Struct {
+		return nil, false
+	}
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if isSimpleIDFiled(f) {
+			return appendValueModifier(m, i, f.Type.Kind() == reflect.Ptr), true
+		} else if maybeAnoymousSmpleIDFiled(f) {
+			var sub reflect.Type
+			if f.Type.Kind() == reflect.Ptr {
+				sub = f.Type.Elem()
+			} else {
+				sub = f.Type
+			}
+			if ms, ok := findIDField(appendValueModifier(m, i, f.Type.Kind() == reflect.Ptr), sub); ok {
+				return ms, ok
+			}
 		}
 	}
-	if idx == -1 {
-		return
-	}
-	if v.Field(idx).Type.Kind() == reflect.Ptr {
-		if !IsPrimitiveType(v.Field(idx).Type.Elem()) {
-			return
+	return nil, false
+}
+
+func appendValueModifier(m []valueModifier, fieldIndex int, isPtr bool) []valueModifier {
+	return append(m, func(v reflect.Value) reflect.Value {
+		if v == invalidValue || !v.IsValid() {
+			return invalidValue
 		}
-		fn = reflect.ValueOf(func(any interface{}) string {
-			if any == nil {
-				return _ZERO
+		if isPtr {
+			if v.Field(fieldIndex).IsNil() || !v.Field(fieldIndex).IsValid() {
+				return invalidValue
 			}
-			vv := reflect.ValueOf(any)
-			if !vv.IsValid() {
-				return _ZERO
-			}
-			if vv.Field(idx).IsNil() || !vv.Field(idx).IsValid() {
-				return _ZERO
-			}
-			return valueToString(vv.Field(idx).Elem())
-		})
-		ok = true
+			return v.Field(fieldIndex).Elem()
+		}
+		if !v.Field(fieldIndex).IsValid() {
+			return invalidValue
+		}
+		return v.Field(fieldIndex)
+	})
+}
+
+func isStructWithIDField(t reflect.Type) (fn reflect.Value, ok bool) {
+	if t.Kind() != reflect.Struct {
 		return
 	}
-	if !IsPrimitiveType(v.Field(idx).Type) {
+	var m []valueModifier
+	if m, ok = findIDField([]valueModifier{}, t); !ok {
 		return
 	}
 	fn = reflect.ValueOf(func(any interface{}) string {
@@ -146,10 +179,13 @@ func isStructWithIDField(v reflect.Type) (fn reflect.Value, ok bool) {
 		if !vv.IsValid() {
 			return _ZERO
 		}
-		if !vv.Field(idx).IsValid() {
-			return _ZERO
+		for _, f := range m {
+			vv = f(vv)
+			if vv == invalidValue || !vv.IsValid() {
+				return _ZERO
+			}
 		}
-		return valueToString(vv.Field(idx))
+		return valueToString(vv)
 	})
 	ok = true
 	return

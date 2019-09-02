@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
@@ -106,4 +107,47 @@ func TestReplacePathStar(t *testing.T) {
 	if p != "A.B[*].C.D[*].E[*]" {
 		t.Fatal("bad replace:", p)
 	}
+}
+
+func TestIsStructWithIDField(t *testing.T) {
+	check := func(obj interface{}, idvalue string) {
+		fn, ok := isStructWithIDField(reflect.TypeOf(obj))
+		if !ok {
+			t.Fatal("fail to get id field", idvalue)
+		}
+		out := fn.Call([]reflect.Value{reflect.ValueOf(obj)})
+		if out[0].String() != idvalue {
+			t.Fatal("fail to get id field", idvalue)
+		}
+	}
+	type SimpleID struct {
+		ID *string
+	}
+	check(SimpleID{ID: stringPtr("12")}, "12")
+	type E3 struct {
+		ID *string
+	}
+	type E2 struct {
+		E3
+	}
+	type E1 struct {
+		*E2
+	}
+	type DeepID struct {
+		*E1
+	}
+	e3 := E3{ID: stringPtr("deep id")}
+	e2 := E2{E3: e3}
+	e1 := E1{E2: &e2}
+	check(DeepID{E1: &e1}, "deep id")
+	check(DeepID{}, _ZERO)
+
+	type A1 struct {
+		ID string
+	}
+	type DeepID2 struct {
+		A1
+	}
+	check(DeepID2{}, "")
+	check(DeepID2{A1: A1{ID: "a1"}}, "a1")
 }
