@@ -279,6 +279,33 @@ func TestOmitPath(t *testing.T) {
 	if !df.Compare(o1, o2, nil) {
 		t.Fatal("should equal")
 	}
+	type A2 struct {
+		Name string
+		Age  int
+	}
+	type A1 struct {
+		A2 A2
+	}
+	a1 := A1{A2: A2{Name: "a1", Age: 1}}
+	a2 := A1{A2: A2{Name: "a2", Age: 1}}
+	df = New()
+	if df.Compare(a1, a2, nil) {
+		t.Fatal("should not equal")
+	}
+	df.OmitPath("Name")
+	if !df.Compare(a1, a2, nil) {
+		t.Fatal("should equal")
+	}
+	a1 = A1{A2: A2{Name: "a1", Age: 1}}
+	a2 = A1{A2: A2{Name: "a2", Age: 100}}
+	df = New()
+	if df.Compare(a1, a2, nil) {
+		t.Fatal("should not equal")
+	}
+	df.OmitPath(".A2.*")
+	if !df.Compare(a1, a2, nil) {
+		t.Fatal("should equal")
+	}
 }
 
 func TestUseCmpTypeFunc(t *testing.T) {

@@ -94,11 +94,20 @@ func buildPathType(path string, t reflect.Type) pathType {
 	return pathType{P: path, T: t}
 }
 
-func min(i, j int) int {
-	if i < j {
-		return i
-	}
-	return j
+func getPathPrefix(path string) string {
+	return strings.TrimSuffix(path, _SPLITTOR+"*")
+}
+
+func isPathPrefix(path string) bool {
+	return strings.HasSuffix(path, _SPLITTOR+"*")
+}
+
+func isAbsolutePath(path string) bool {
+	return strings.HasPrefix(path, _ROOT)
+}
+
+func isStep(step string) bool {
+	return !strings.Contains(step, _SPLITTOR)
 }
 
 func defaultValue(t reflect.Type) reflect.Value {
@@ -168,4 +177,10 @@ func SplitFieldAndIndex(step string) (field string, idx int) {
 func TrimFieldIndexSuffix(step string) string {
 	f, _ := SplitFieldAndIndex(step)
 	return f
+}
+
+// LastNodeOfPath last step node of path
+func LastNodeOfPath(path string) string {
+	steps := strings.Split(path, _SPLITTOR)
+	return steps[len(steps)-1]
 }

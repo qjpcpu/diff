@@ -3,6 +3,7 @@ package diff
 import (
 	"errors"
 	"reflect"
+	"strings"
 )
 
 // Reason constants
@@ -68,6 +69,7 @@ type Differ struct {
 	typeIDFuncs map[reflect.Type]reflect.Value
 	kindIDFuncs map[reflect.Kind]reflect.Value
 	omitPaths   map[string]bool
+	omitPrefix  map[string]bool
 }
 
 type pathType struct {
@@ -92,6 +94,7 @@ func New() *Differ {
 		typeIDFuncs:  make(map[reflect.Type]reflect.Value),
 		kindIDFuncs:  make(map[reflect.Kind]reflect.Value),
 		omitPaths:    make(map[string]bool),
+		omitPrefix:   make(map[string]bool),
 	}
 	df.registDefaultCmpFuncs()
 	return df
@@ -126,10 +129,14 @@ func newDiffer(d *Differ, fn Callback) *differ {
 	return _diff
 }
 
-// OmitPath would be skipped by differ
+// OmitPath would be skipped by differ, the path can be absolute path .A.B.C or last path step D or slice fuzzy path .A[*].E
 func (df *Differ) OmitPath(list ...string) {
 	for _, p := range list {
-		df.omitPaths[p] = true
+		if isPathPrefix(p) {
+			df.omitPrefix[getPathPrefix(p)] = true
+		} else {
+			df.omitPaths[p] = true
+		}
 	}
 }
 
@@ -137,8 +144,19 @@ func (df *Differ) isOmit(p string) bool {
 	if df.omitPaths[p] {
 		return true
 	}
+	if df.omitPaths[LastNodeOfPath(p)] {
+		return true
+	}
 	p = replaceSliceIndexToStar(p)
-	return df.omitPaths[p]
+	if df.omitPaths[p] {
+		return true
+	}
+	for prefix := range df.omitPrefix {
+		if strings.HasPrefix(p, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // RegistCompareFunc the cmpFunc should be func(left,right customType) bool
