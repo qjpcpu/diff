@@ -112,16 +112,17 @@ func newDiffer(d *Differ, fn Callback) *differ {
 		}
 		_diff.differenceExist = true
 		_d := buildD(path, reason, leftV, rightV)
-		if t, ok := _diff.getPathToType(path); ok && t.Kind() == reflect.Ptr && leftV.Kind() != reflect.Ptr && leftV.Kind() != reflect.Interface {
-			nLeft, nRight := reflect.New(t.Elem()), reflect.New(t.Elem())
-			if leftV.IsValid() {
+		if t, ok := _diff.getPathToType(path); ok && t.Kind() == reflect.Ptr {
+			if leftV.Kind() != reflect.Ptr && leftV.Kind() != reflect.Interface && leftV.IsValid() {
+				nLeft := reflect.New(t.Elem())
 				nLeft.Elem().Set(leftV)
+				_d.LeftV = nLeft
 			}
-			if rightV.IsValid() {
+			if rightV.Kind() != reflect.Ptr && rightV.Kind() != reflect.Interface && rightV.IsValid() {
+				nRight := reflect.New(t.Elem())
 				nRight.Elem().Set(rightV)
+				_d.RightV = nRight
 			}
-			_d.LeftV = nLeft
-			_d.RightV = nRight
 		}
 		return fn(_d)
 	}

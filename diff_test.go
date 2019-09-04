@@ -8,6 +8,47 @@ import (
 	"time"
 )
 
+func makeHugeStruct() *HugeStruct {
+	_ct2 := ct2
+	return &HugeStruct{
+		ID:   stringPtr("id-v"),
+		Name: "name",
+		BasicInfo: BasicInfo{
+			Name:   stringPtr("basic name"),
+			Mobile: stringPtr("111111"),
+		},
+		CompanyList: []*Company{
+			&Company{Name: "google", Link: stringPtr("www.google.com")},
+			&Company{Name: "aws", Link: stringPtr("www.amazon.com")},
+		},
+		SchoolList: []School{
+			{ID: "school1", Name: "s1"},
+			{ID: "school2", Name: "s2", Area: intPtr(1)},
+		},
+		Tags:    []string{"a", "b", "c"},
+		Numbers: []int64{1, 2, 3},
+		CType:   ct1,
+		CType2:  &_ct2,
+	}
+}
+
+func contains(set []string, str string) bool {
+	for _, s := range set {
+		if str == s {
+			return true
+		}
+	}
+	return false
+}
+
+func stringPtr(s string) *string {
+	return &s
+}
+
+func intPtr(i int) *int {
+	return &i
+}
+
 func TestBasicArray(t *testing.T) {
 	r1 := []string{"a", "b", "c", "e", "f"}
 	r2 := []string{"a", "g", "b", "c", "a", "t"}
@@ -544,34 +585,173 @@ func TestInterface(t *testing.T) {
 	}
 }
 
-func makeHugeStruct() *HugeStruct {
-	_ct2 := ct2
-	return &HugeStruct{
-		ID:   stringPtr("id-v"),
-		Name: "name",
-		BasicInfo: BasicInfo{
-			Name:   stringPtr("basic name"),
-			Mobile: stringPtr("111111"),
-		},
-		CompanyList: []*Company{
-			&Company{Name: "google", Link: stringPtr("www.google.com")},
-			&Company{Name: "aws", Link: stringPtr("www.amazon.com")},
-		},
-		SchoolList: []School{
-			{ID: "school1", Name: "s1"},
-			{ID: "school2", Name: "s2", Area: intPtr(1)},
-		},
-		Tags:    []string{"a", "b", "c"},
-		Numbers: []int64{1, 2, 3},
-		CType:   ct1,
-		CType2:  &_ct2,
+func TestMapWithSameSize(t *testing.T) {
+	m1 := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
 	}
+	m2 := map[string]int{
+		"a": 1,
+		"b": 5,
+		"c": 3,
+	}
+	df := New()
+	fn := func(_d *D) bool {
+		if _d.Path != ".b" || _d.RightV.Int() != 5 {
+			t.Fatal("bad diff", _d)
+		}
+		return true
+	}
+	if df.Compare(m1, m2, fn) {
+		t.Fatal("should not equals")
+	}
+	t1 := map[string]*int{
+		"a": intPtr(1),
+		"b": intPtr(2),
+		"c": intPtr(3),
+	}
+	t2 := map[string]*int{
+		"a": intPtr(1),
+		"b": intPtr(5),
+		"c": intPtr(3),
+	}
+	df = New()
+	fn = func(_d *D) bool {
+		if _d.Path != ".b" || *(_d.RightV.Interface().(*int)) != 5 {
+			t.Fatal("bad diff", _d)
+		}
+		return true
+	}
+	if df.Compare(t1, t2, fn) {
+		t.Fatal("should not equals")
+	}
+
+	type mapV struct {
+		Num *int
+	}
+	s1 := map[string]*mapV{
+		"a": &mapV{Num: intPtr(1)},
+		"b": &mapV{Num: intPtr(2)},
+		"c": &mapV{Num: intPtr(3)},
+	}
+	s2 := map[string]*mapV{
+		"a": &mapV{Num: intPtr(1)},
+		"b": &mapV{Num: intPtr(5)},
+		"c": nil,
+	}
+	df = New()
+	fn = func(_d *D) bool {
+		if _d.Path != ".b.Num" && _d.Path != ".c" {
+			t.Fatal("bad diff path", _d.Path)
+		}
+		if _d.Path == ".b.Num" && *(_d.RightV.Interface().(*int)) != 5 {
+			t.Fatal("bad diff", _d)
+		}
+		if _d.Path == ".c" && _d.Reason != DiffOfRightNoValue {
+			t.Fatal("bad diff")
+		}
+		return true
+	}
+	if df.Compare(s1, s2, fn) {
+		t.Fatal("should not equals")
+	}
+
+	ss1 := map[string]mapV{
+		"a": mapV{Num: intPtr(1)},
+		"b": mapV{Num: intPtr(2)},
+		"c": mapV{Num: intPtr(3)},
+	}
+	ss2 := map[string]mapV{
+		"a": mapV{Num: intPtr(1)},
+		"b": mapV{Num: intPtr(5)},
+		"c": mapV{},
+	}
+	df = New()
+	fn = func(_d *D) bool {
+		if _d.Path != ".b.Num" && _d.Path != ".c.Num" {
+			t.Fatal("bad diff path", _d.Path)
+		}
+		if _d.Path == ".b.Num" && *(_d.RightV.Interface().(*int)) != 5 {
+			t.Fatal("bad diff", _d)
+		}
+		if _d.Path == ".c" && _d.Reason != DiffOfRightNoValue {
+			t.Fatal("bad diff")
+		}
+		return true
+	}
+	if df.Compare(ss1, ss2, fn) {
+		t.Fatal("should not equals")
+	}
+
 }
 
-func stringPtr(s string) *string {
-	return &s
-}
-
-func intPtr(i int) *int {
-	return &i
+func TestMapWithDiffSize(t *testing.T) {
+	m1 := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	m2 := map[string]int{
+		"a": 1,
+		"c": 3,
+	}
+	df := New()
+	fn := func(_d *D) bool {
+		if _d.Path != ".b" {
+			t.Fatal("bad diff", _d)
+		}
+		return true
+	}
+	if df.Compare(m1, m2, fn) {
+		t.Fatal("should not equals")
+	}
+	type mapV struct {
+		Num *int
+	}
+	s1 := map[string]*mapV{
+		"a": &mapV{Num: intPtr(1)},
+		"b": &mapV{Num: intPtr(2)},
+		"c": &mapV{Num: intPtr(3)},
+	}
+	s2 := map[string]*mapV{
+		"a": &mapV{Num: intPtr(1)},
+		"b": &mapV{Num: intPtr(5)},
+		"d": nil,
+		"e": &mapV{Num: intPtr(7)},
+	}
+	df = New()
+	fn = func(_d *D) bool {
+		if !contains([]string{".b.Num", ".c", ".d", ".e"}, _d.Path) {
+			t.Fatal("bad diff path", _d.Path)
+		}
+		switch _d.Path {
+		case ".b.Num":
+			if *(_d.LeftV.Interface().(*int)) != 2 || *(_d.RightV.Interface().(*int)) != 5 {
+				t.Fatal("bad diff")
+			}
+		case ".c":
+			if _d.Reason != DiffOfRightNoValue {
+				t.Fatal("bad diff")
+			}
+		case ".d":
+			if _d.Reason != DiffOfLeftNoValue {
+				t.Fatal("bad diff")
+			}
+			if _d.RightV.Interface().(*mapV) != nil {
+				t.Fatal("bad diff")
+			}
+		case ".e":
+			if _d.Reason != DiffOfLeftNoValue {
+				t.Fatal("bad diff")
+			}
+			if *(_d.RightV.Interface().(*mapV).Num) != 7 {
+				t.Fatal("bad diff")
+			}
+		}
+		return true
+	}
+	if df.Compare(s1, s2, fn) {
+		t.Fatal("should not equals")
+	}
 }
