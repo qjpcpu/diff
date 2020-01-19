@@ -1,0 +1,58 @@
+
+* demo
+
+#+begin_src go 
+package main
+
+import (
+	"fmt"
+
+	"github.com/qjpcpu/diff"
+)
+
+type Person struct {
+	Name    string
+	Age     int
+	Addr    Address
+	Hobbies []string
+}
+
+type Address struct {
+	Street   string
+	District *string
+}
+
+func main() {
+	dist1 := "Blue"
+	p1 := &Person{
+		Name: "Link",
+		Age:  22,
+		Addr: Address{
+			Street:   "Lanjing",
+			District: &dist1,
+		},
+		Hobbies: []string{"writing"},
+	}
+	p2 := &Person{
+		Name: "Jack",
+		Age:  21,
+		Addr: Address{
+			Street: "Zhichun",
+		},
+		Hobbies: []string{"writing", "reading"},
+	}
+	differ := diff.New()
+	patch := differ.MakePatch(p1, p2)
+	fmt.Println(patch.Readable())
+}
+#+end_src
+
+#+begin_src 
+Output:
+Patch size: 5
+01. .Name (Diff Value) left=("Link") right=("Jack")
+02. .Age (Diff Value) left=(22) right=(21)
+03. .Addr.Street (Diff Value) left=("Lanjing") right=("Zhichun")
+04. .Addr.District (Diff Right No Value) left=("Blue") right=(null)
+05. .Hobbies[1] (Diff Right Elem Added) left=("") right=("reading")
+#+end_src
