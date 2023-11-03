@@ -755,3 +755,56 @@ func TestMapWithDiffSize(t *testing.T) {
 		t.Fatal("should not equals")
 	}
 }
+
+type BaseDomain struct {
+	ID         int
+	CreateTime int
+}
+type InterviewArrangement struct {
+	BaseDomain
+	ApplicationID       *string
+	StageID             *string
+	Type                *int
+	TalentTimezoneCode  *string
+	TalentInterviewDate *string
+	PaperTestStatus     *int
+	PaperTest           *int
+	ContactUserID       *string
+	ContactMobile       *string
+	AddressID           *string
+	CreatorID           *string
+	Remark              *string
+
+	MeetingRoom   *string
+	BizCreateTime *int64
+	BizModifyTime *int64
+	Extend        *int
+	InterviewList []int
+	CCList        []int
+}
+
+func TestOmitPath2(t *testing.T) {
+
+	o1 := &InterviewArrangement{
+		BaseDomain: BaseDomain{
+			ID: 1,
+		},
+		Remark:        stringPtr("a"),
+		InterviewList: []int{1, 2},
+	}
+	o2 := &InterviewArrangement{
+		BaseDomain: BaseDomain{
+			ID: 2,
+		},
+		Remark:        stringPtr("a"),
+		InterviewList: []int{1, 2, 3},
+	}
+	df := New()
+
+	df.OmitPath(".BaseDomain.*", ".InterviewList.*")
+	if res := df.MakePatch(o1, o2); res.Size() > 0 {
+		t.Log(res.Readable())
+		t.Fatal("should equal")
+	}
+
+}
